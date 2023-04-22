@@ -5,6 +5,8 @@ To run the server, type ```java HttpServer.java``` in terminal/command line and 
  - example2.txt
  - 200.jpg
  
+ To try POST, type ```curl -X POST -d 'insert text here' -H 'Content-Type: text/plain' localhost/exapmle.txt``` into terminal/command line.
+ 
 ## Assignment Information
 ### Creating an HTTP Server
 For this assignment, you will be building your own HTTP server that implements HTTP/1.1 (RFC2616)Links to an external site.!
