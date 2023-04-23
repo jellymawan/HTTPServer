@@ -7,9 +7,9 @@ public class HttpServer {
     static String requestURL = "";
     static String requestLine = "";
     static String bodyLine = "";
+    static int port = 80;
 
     public static void main(String[] args) throws IOException {
-        int port = 80;
         ServerSocket serverSocket = new ServerSocket(port);
         System.out.println("Server running on port: " + port);
 
@@ -17,8 +17,6 @@ public class HttpServer {
         path.put("/example.txt", "text/plain");
         path.put("/200.jpeg", "image/jpeg");
         path.put("/example2.txt", "text/plain");
-        //path.put("/how-to-hack-Ted.txt", "text/plain"); //XC
-        //path.put("/rated-r.txt", "text/plain"); //XC
 
         while (true) {
             try {
@@ -26,21 +24,36 @@ public class HttpServer {
                 System.out.println("Client Connected");
 
                 BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                OutputStream os = clientSocket.getOutputStream();
 
                 parser(in);
 
                 String line = requestLine;
                 requestURL = requestLine.substring(requestLine.indexOf("/") + 1, requestLine.indexOf("HTTP") - 1);
 
+
                 if(line.contains("GET")) {
-                    if(path.containsKey("/" + requestURL)) { //if its a known path
-                        File f = new File("./" + requestURL);
+
+                    //if file exists, but file path does not exist, 403
+                    File f = new File("./" + requestURL);
+                    if (f.exists() && !path.containsKey("/" + requestURL)) {
+                        f = new File("./401.jpeg");
+                        byte[] bytes = new byte[(int) f.length()];
+                        FileInputStream fis = new FileInputStream("401.jpeg");
+                        BufferedInputStream bufInputStream = new BufferedInputStream(fis);
+                        bufInputStream.read(bytes);
+
+                        os.write("HTTP/1.1 401 Unauthorized".getBytes());
+                        os.write("\r\n\r\n".getBytes());
+                        os.write(bytes);
+                        os.write("\r\n\r\n".getBytes());
+
+                    } else if(path.containsKey("/" + requestURL)) { //if it's a known path
                         byte[] bytes = new byte[(int) f.length()];
 
                         FileInputStream fis = new FileInputStream(requestURL);
                         BufferedInputStream bufInputStream = new BufferedInputStream(fis);
                         bufInputStream.read(bytes);
-                        OutputStream os = clientSocket.getOutputStream();
 
                         os.write("HTTP/1.1 200 OK\r\n".getBytes());
                         os.write(("Content-type: " + path.get("/" + requestURL) + "\r\n").getBytes());
@@ -49,25 +62,20 @@ public class HttpServer {
                         os.write(bytes);
                         os.write("\r\n\r\n".getBytes());
 
-                        os.flush();
                         fis.close();
                         fis.close();
                         bufInputStream.close();
-                        os.close();
-                    }else {
-                        File f = new File("./404.jpeg");
+                    }else { //file does not exist
+                        f = new File("./404.jpeg");
                         byte[] bytes = new byte[(int) f.length()];
                         FileInputStream fis = new FileInputStream("404.jpeg");
                         BufferedInputStream bufInputStream = new BufferedInputStream(fis);
                         bufInputStream.read(bytes);
 
-                        OutputStream os = clientSocket.getOutputStream();
                         os.write("HTTP/1.1 404 Not Found".getBytes());
                         os.write("\r\n\r\n".getBytes());
                         os.write(bytes);
                         os.write("\r\n\r\n".getBytes());
-
-                        os.flush();
                     }
                 } else if (line.contains("POST")) {
                     if (path.get("/" + requestURL).equals("text/plain")) { //can only use POST on text/plain types
@@ -84,55 +92,110 @@ public class HttpServer {
                         byte[] bytes = new byte[(int) f.length()];
                         bufInputStream.read(bytes);
 
-                        OutputStream os = clientSocket.getOutputStream();
                         os.write("HTTP/1.1 200 OK\r\n".getBytes());
+                        os.write(("Content-type: text/plain\r\n").getBytes());
                         os.write(("Content-length: " + bytes.length).getBytes());
                         os.write("\r\n\r\n".getBytes());
                         os.write("Check the file!".getBytes());
                         os.write("\r\n\r\n".getBytes());
 
-                        os.flush();
                         fis.close();
                         bufInputStream.close();
                         br.close();
                         fw.close();
-                        os.close();
                     }
                 } else if (line.contains("DELETE")) {
                     File f = new File("./" + requestURL);
                     f.delete();
+                    String contentType = path.get("/" + requestURL);
                     path.remove("/" + requestURL);
                     System.out.println("File deleted successfully");
 
-                    OutputStream os = clientSocket.getOutputStream();
-                    os.write("HTTP/1.1 200 OK".getBytes());
+                    os.write("HTTP/1.1 200 OK\r\n".getBytes());
+                    os.write(("Content-type: " + contentType).getBytes());
+                    os.write("\r\n\r\n".getBytes());
+                    os.write("File deleted.".getBytes());
+                    os.write("\r\n\r\n".getBytes());
 
                 } else if (line.contains("PUT")) {
                     File f = new File("./" + requestURL);
-                    if (!f.exists()) {
-                        f.createNewFile();
+                    if (!f.exists()) { //if file does not exist
+                        f.createNewFile(); //create new file
+                        path.put("/" + requestURL, "text/plain"); //I am forcing it to be a txt file
+                        FileWriter fw = new FileWriter(f, true);
+                        BufferedWriter br = new BufferedWriter(fw);
+                        br.write(bodyLine);
 
-                        //parse through body
-                    } else {
-                        //FileWriter fw = new FileWriter(, false);
-                        //fw.write();
+                        System.out.println(bodyLine);
+
+                        FileInputStream fis = new FileInputStream(requestURL);
+                        BufferedInputStream bufInputStream = new BufferedInputStream(fis);
+                        byte[] bytes = new byte[(int) f.length()];
+                        bufInputStream.read(bytes);
+
+
+                        if (bodyLine.equals("")) { //if there is no body -- creates an empty file
+                            os.write("HTTP/1.1 204 No Content\r\n".getBytes());
+                            os.write(("Content-type: text/plain\r\n").getBytes());
+                            os.write(("Content-length: " + bytes.length).getBytes());
+                            os.write("\r\n\r\n".getBytes());
+                            os.write("New empty file created.".getBytes()); //for some reason this is not being sent, but everything else works
+                            os.write("\r\n\r\n".getBytes());
+
+                            fis.close();
+                            bufInputStream.close();
+                            br.close();
+                            fw.close();
+                        } else { // if there is a body, creates a file with the body as the contents
+                            os.write("HTTP/1.1 201 Created\r\n".getBytes());
+                            os.write(("Content-type: text/plain\r\n").getBytes());
+                            os.write(("Content-length: " + bytes.length).getBytes());
+                            os.write("\r\n\r\n".getBytes());
+                            os.write("New file created with contents.".getBytes()); //not printing
+                            os.write("\r\n\r\n".getBytes());
+
+                            fis.close();
+                            bufInputStream.close();
+                            br.close();
+                            fw.close();
+                        }
+
+                    } else { //if the file exists
+                        FileWriter fw = new FileWriter(f , false); //overwrite the file
+                        BufferedWriter br = new BufferedWriter(fw);
+                        br.write(bodyLine);
+
+                        FileInputStream fis = new FileInputStream(requestURL);
+                        BufferedInputStream bufInputStream = new BufferedInputStream(fis);
+                        byte[] bytes = new byte[(int) f.length()];
+                        bufInputStream.read(bytes);
+
+                        //OutputStream os = clientSocket.getOutputStream();
+
+                        os.write("HTTP/1.1 201 Created\r\n".getBytes());
+                        os.write(("Content-type: text/plain\r\n").getBytes());
+                        os.write(("Content-length: " + bytes.length).getBytes());
+                        os.write("\r\n\r\n".getBytes());
+                        os.write("New file created with contents.".getBytes()); //not printing
+                        os.write("\r\n\r\n".getBytes());
+
+                        fis.close();
+                        bufInputStream.close();
+                        br.close();
+                        fw.close();
                     }
 
                 }
-//                while(!line.isEmpty()) {
-//                    System.out.println(line);
-//
-//                    line = in.readLine();
-//                }
+                os.flush();
+                os.close();
             }
             catch(IOException ex) {
                 ex.printStackTrace();
             }
+
         }
-
     }
-
-    public static void parser(BufferedReader bufferedReader) throws IOException {
+    public static void parser(BufferedReader bufferedReader) throws IOException { //Parses request
         String contentLength = "";
         requestLine = bufferedReader.readLine();
         String inputLine = bufferedReader.readLine();
@@ -141,22 +204,21 @@ public class HttpServer {
             if (inputLine.contains("Content-Length")) {
                 contentLength = inputLine;
             }
-            System.out.println(inputLine);
         }
 
         if (!requestLine.contains("GET")) { //parses body
+            bodyLine = "";
             int index = contentLength.indexOf(":");
-            String length = contentLength.substring(index + 2);
-            int num = Integer.parseInt(length);
-
-            if (num > 0) {
-                for(int i = 0; i < num; i++) {
-                    bodyLine += (char)bufferedReader.read();
-                    System.out.println(bodyLine);
+            if(index != -1) {
+                String length = contentLength.substring(index + 2);
+                int num = Integer.parseInt(length);
+                if (num > 0) {
+                    for(int i = 0; i < num; i++) {
+                        bodyLine += (char)bufferedReader.read();
+                    }
                 }
             }
+
         }
-
     }
-
 }
