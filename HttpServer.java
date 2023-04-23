@@ -1,10 +1,12 @@
 import java.net.*;
 import java.io.*;
-import java.util.HashMap;
+import java.util.*;
 
 public class HttpServer {
 
-    static String requestURL;
+    static String requestURL = "";
+    static String requestLine = "";
+    static String bodyLine = "";
 
     public static void main(String[] args) throws IOException {
         int port = 80;
@@ -20,17 +22,18 @@ public class HttpServer {
 
         while (true) {
             try {
-
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Client Connected");
 
                 BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
-                String line = in.readLine();
-                requestURL = line.substring(line.indexOf("/") + 1, line.indexOf("HTTP") - 1);
+                parser(in);
+
+                String line = requestLine;
+                requestURL = requestLine.substring(requestLine.indexOf("/") + 1, requestLine.indexOf("HTTP") - 1);
 
                 if(line.contains("GET")) {
-                    if(path.containsKey("/" + requestURL)) {
+                    if(path.containsKey("/" + requestURL)) { //if its a known path
                         File f = new File("./" + requestURL);
                         byte[] bytes = new byte[(int) f.length()];
 
@@ -52,72 +55,69 @@ public class HttpServer {
                         bufInputStream.close();
                         os.close();
                     }else {
-//                    String http404Response = "HTTP/1.1 404 Not Found\r\n\r\n" + "<!DOCTYPE html>\n" +
-//                            "<html>\n" +
-//                            "\n" +
-//                            "<head>\n" +
-//                            "    <title>Not Found</title>\n" +
-//                            "</head>\n" +
-//                            "\n" +
-//                            "<body>\n" +
-//                            "<img src=\"/404.jpeg\">\n" +
-//                            "</body>\n" +
-//                            "\n" +
-//                            "</html>";
-
                         File f = new File("./404.jpeg");
                         byte[] bytes = new byte[(int) f.length()];
                         FileInputStream fis = new FileInputStream("404.jpeg");
                         BufferedInputStream bufInputStream = new BufferedInputStream(fis);
                         bufInputStream.read(bytes);
 
-                        OutputStream clientOutput = clientSocket.getOutputStream();
-                        //clientOutput.write(http404Response.getBytes());
-                        clientOutput.write("HTTP/1.1 404 Not Found".getBytes());
-                        clientOutput.write("\r\n\r\n".getBytes());
-                        clientOutput.write(bytes);
-                        clientOutput.write("\r\n\r\n".getBytes());
+                        OutputStream os = clientSocket.getOutputStream();
+                        os.write("HTTP/1.1 404 Not Found".getBytes());
+                        os.write("\r\n\r\n".getBytes());
+                        os.write(bytes);
+                        os.write("\r\n\r\n".getBytes());
 
-                        clientOutput.flush();
+                        os.flush();
                     }
                 } else if (line.contains("POST")) {
-                    String requestBody = "";
                     if (path.get("/" + requestURL).equals("text/plain")) { //can only use POST on text/plain types
-                        while(!line.isEmpty()) { //parses through until it reaches an empty line
-                            //System.out.println(line);
-                            line = in.readLine();
-                        }
-                        requestBody = in.readLine(); //after the empty line, the body of the request
-                        //System.out.println("Word to be appended: " + requestBody);
+                        System.out.println("POST request");
+
+                        System.out.println("Word to be appended: " + bodyLine);
                         File f = new File("./" + requestURL);
-                        //System.out.println("Before append, file length: " + f.length());
                         FileWriter fw = new FileWriter(f, true);
                         BufferedWriter br = new BufferedWriter(fw);
-                        br.write(requestBody);
-
-                        br.close();
-                        fw.close();
-
-                        //System.out.println("After append, file length: " + f.length());
+                        br.write(bodyLine);
 
                         FileInputStream fis = new FileInputStream(requestURL);
                         BufferedInputStream bufInputStream = new BufferedInputStream(fis);
                         byte[] bytes = new byte[(int) f.length()];
                         bufInputStream.read(bytes);
 
-                        //OutputStream os = clientSocket.getOutputStream();
-                        //os.write("HTTP/1.1 200 OK".getBytes());
-                        //os.write("\r\n\r\n".getBytes()); //Currently, this needs to be commented out. After sending the curl, the client waits for a response, and so does the server. I need to exit out of the client
-                        //in order for the server to process the request.
-                        //os.write(bytes);
-                        //os.write("\r\n\r\n".getBytes());
+                        OutputStream os = clientSocket.getOutputStream();
+                        os.write("HTTP/1.1 200 OK\r\n".getBytes());
+                        os.write(("Content-length: " + bytes.length).getBytes());
+                        os.write("\r\n\r\n".getBytes());
+                        os.write("Check the file!".getBytes());
+                        os.write("\r\n\r\n".getBytes());
 
-                        //os.flush();
+                        os.flush();
                         fis.close();
-                        //fis.close();
                         bufInputStream.close();
-                        //os.close();
+                        br.close();
+                        fw.close();
+                        os.close();
                     }
+                } else if (line.contains("DELETE")) {
+                    File f = new File("./" + requestURL);
+                    f.delete();
+                    path.remove("/" + requestURL);
+                    System.out.println("File deleted successfully");
+
+                    OutputStream os = clientSocket.getOutputStream();
+                    os.write("HTTP/1.1 200 OK".getBytes());
+
+                } else if (line.contains("PUT")) {
+                    File f = new File("./" + requestURL);
+                    if (!f.exists()) {
+                        f.createNewFile();
+
+                        //parse through body
+                    } else {
+                        //FileWriter fw = new FileWriter(, false);
+                        //fw.write();
+                    }
+
                 }
 //                while(!line.isEmpty()) {
 //                    System.out.println(line);
@@ -127,6 +127,33 @@ public class HttpServer {
             }
             catch(IOException ex) {
                 ex.printStackTrace();
+            }
+        }
+
+    }
+
+    public static void parser(BufferedReader bufferedReader) throws IOException {
+        String contentLength = "";
+        requestLine = bufferedReader.readLine();
+        String inputLine = bufferedReader.readLine();
+        while (inputLine.length() > 0) { //header
+            inputLine = bufferedReader.readLine();
+            if (inputLine.contains("Content-Length")) {
+                contentLength = inputLine;
+            }
+            System.out.println(inputLine);
+        }
+
+        if (!requestLine.contains("GET")) { //parses body
+            int index = contentLength.indexOf(":");
+            String length = contentLength.substring(index + 2);
+            int num = Integer.parseInt(length);
+
+            if (num > 0) {
+                for(int i = 0; i < num; i++) {
+                    bodyLine += (char)bufferedReader.read();
+                    System.out.println(bodyLine);
+                }
             }
         }
 
