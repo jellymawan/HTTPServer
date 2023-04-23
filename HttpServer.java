@@ -33,7 +33,7 @@ public class HttpServer {
                 requestURL = requestLine.substring(requestLine.indexOf("/") + 1, requestLine.indexOf("HTTP") - 1);
                 File f = new File("./" + requestURL);
 
-                if (!line.contains("PUT") && f.exists() && !path.containsKey("/" + requestURL)) {
+                if (f.exists() && !path.containsKey("/" + requestURL)) {
                     f = new File("./401.jpeg");
                     byte[] bytes = new byte[(int) f.length()];
                     FileInputStream fis = new FileInputStream("401.jpeg");
@@ -41,11 +41,11 @@ public class HttpServer {
                     bufInputStream.read(bytes);
 
                     os.write("HTTP/1.1 401 Unauthorized\r\n".getBytes());
-                    os.write(("Content-type: text/html"+ "\r\n").getBytes());
+                    os.write(("Content-type: image/jpeg").getBytes());
                     os.write("\r\n\r\n".getBytes());
                     os.write(bytes);
                     os.write("\r\n\r\n".getBytes());
-                } else if(line.contains("GET")) {
+                } else if(line.contains("GET") || line.contains("HEAD")) {
                     if(path.containsKey("/" + requestURL)) { //if it's a known path
                         byte[] bytes = new byte[(int) f.length()];
 
@@ -56,10 +56,11 @@ public class HttpServer {
                         os.write("HTTP/1.1 200 OK\r\n".getBytes());
                         os.write(("Content-type: " + path.get("/" + requestURL) + "\r\n").getBytes());
                         os.write(("Content-length: " + bytes.length).getBytes());
-                        os.write("\r\n\r\n".getBytes());
-                        os.write(bytes);
-                        os.write("\r\n\r\n".getBytes());
-
+                        if(line.contains("GET")) {
+                            os.write("\r\n\r\n".getBytes());
+                            os.write(bytes);
+                            os.write("\r\n\r\n".getBytes());
+                        }
                         fis.close();
                         fis.close();
                         bufInputStream.close();
@@ -195,7 +196,7 @@ public class HttpServer {
             }
         }
 
-        if (!requestLine.contains("GET")) { //parses body
+        if (!requestLine.contains("GET") || !requestLine.contains("HEAD")) { //parses body
             bodyLine = "";
             int index = contentLength.indexOf(":");
             if(index != -1) {
