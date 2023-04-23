@@ -1,14 +1,20 @@
 # HTTPServer
 
+#### For some reason, I couldn't get this to work with Postman, but curl works perfectly fine.
+
 To run the server, type ```java HttpServer.java``` in terminal/command line and type in ```localhost/example.txt``` to get started. You can navigate between these paths:
  - example.txt
  - example2.txt
  - 200.jpg
  
- To try POST, type ```curl -X POST -d 'insert text here' localhost/example.txt``` into terminal/command line.
+To try POST, type ```curl -X POST -d 'insert text here' localhost/example.txt -v``` into terminal/command line.
  
- To try PUT, use the example below in the terminal/command line:
+To try PUT, use the example below in the terminal/command line:
  - ```curl -X PUT -d 'insert text here' localhost/filename.txt```
+
+To try DELETE, type ```curl -X DELETE localhost/example.txt -v``` into terminal/command line
+
+To try HEAD, type ```curl --head localhost/example.txt``` into terminal/command line
  
 ## Assignment Information
 ### Creating an HTTP Server
