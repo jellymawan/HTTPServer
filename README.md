@@ -15,6 +15,8 @@ To try PUT, use the example below in the terminal/command line:
 To try DELETE, type ```curl -X DELETE localhost/example.txt -v``` into terminal/command line
 
 To try HEAD, type ```curl --head localhost/example.txt``` into terminal/command line
+
+To try to get the 401 error code, use PUT to make a new file, close the server, and try to GET the file
  
 ## Assignment Information
 ### Creating an HTTP Server
