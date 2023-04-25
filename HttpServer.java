@@ -45,10 +45,21 @@ public class HttpServer {
                     os.write("\r\n\r\n".getBytes());
                     os.write(bytes);
                     os.write("\r\n\r\n".getBytes());
-                } else if(line.contains("GET") || line.contains("HEAD")) {
+                }else if (!line.contains("PUT") && !f.exists()) {
+                    f = new File("./404.jpeg");
+                    byte[] bytes = new byte[(int) f.length()];
+                    FileInputStream fis = new FileInputStream("404.jpeg");
+                    BufferedInputStream bufInputStream = new BufferedInputStream(fis);
+                    bufInputStream.read(bytes);
+
+                    os.write("HTTP/1.1 404 Not Found\r\n".getBytes());
+                    os.write(("Content-type: image/jpeg").getBytes());
+                    os.write("\r\n\r\n".getBytes());
+                    os.write(bytes);
+                    os.write("\r\n\r\n".getBytes());
+                }else if(line.contains("GET") || line.contains("HEAD")) {
                     if(path.containsKey("/" + requestURL)) { //if it's a known path
                         byte[] bytes = new byte[(int) f.length()];
-
                         FileInputStream fis = new FileInputStream(requestURL);
                         BufferedInputStream bufInputStream = new BufferedInputStream(fis);
                         bufInputStream.read(bytes);
@@ -64,17 +75,6 @@ public class HttpServer {
                         fis.close();
                         fis.close();
                         bufInputStream.close();
-                    }else { //file does not exist
-                        f = new File("./404.jpeg");
-                        byte[] bytes = new byte[(int) f.length()];
-                        FileInputStream fis = new FileInputStream("404.jpeg");
-                        BufferedInputStream bufInputStream = new BufferedInputStream(fis);
-                        bufInputStream.read(bytes);
-
-                        os.write("HTTP/1.1 404 Not Found".getBytes());
-                        os.write("\r\n\r\n".getBytes());
-                        os.write(bytes);
-                        os.write("\r\n\r\n".getBytes());
                     }
                 } else if (line.contains("POST")) {
                     if (path.get("/" + requestURL).equals("text/plain")) { //can only use POST on text/plain types
